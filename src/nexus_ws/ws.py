@@ -153,9 +153,13 @@ class WSClient(ABC):
 
     def timestamp_ms(self) -> int:
         return int(time.time() * 1000)
+    
+    @property
+    def connected(self) -> bool:
+        return self._transport is not None
 
     async def connect(self):
-        if self._transport:
+        if self.connected:
             return
 
         self._log.debug(f"Connecting to Websocket at {self._url}...")
@@ -208,14 +212,12 @@ class WSClient(ABC):
             pass
 
     def send(self, payload: dict):
-        if not self._transport:
-            self._log.warning(f"Websocket not connected. drop msg: {str(payload)}")
+        if not self.connected:
+            self._log.warning(f"Websocket not connected. drop msg: {str(payload)}, please run `await connect()` first.")
             return
         self._transport.send(WSMsgType.TEXT, msgspec.json.encode(payload))
 
     def _clean_up(self):
-        if self._transport:
-            self._transport.disconnect()
         self._transport, self._listener = None, None
 
     @abstractmethod

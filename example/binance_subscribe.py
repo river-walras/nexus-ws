@@ -7,7 +7,7 @@ def handler(raw: bytes):
     print("Received message:", message)
 
 async def main():
-    url = BinanceStreamUrl.USDM_FUTURES
+    url = BinanceStreamUrl.USD_M_FUTURES
     client = BinanceWSClient(handler, url)
 
     await client.connect()
