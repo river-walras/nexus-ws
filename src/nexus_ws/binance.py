@@ -31,6 +31,8 @@ MARK_PRICE_INTERVAL = Literal["1s", "3s"]
 
 CONTRACT_TYPE = Literal["perpetual", "current_quarter", "next_quarter"]
 
+PARTIAL_BOOK_DEPTH_LEVELS = Literal[5, 10, 20]
+BOOK_DEPTH_UPDATE_SPEED = Literal["100ms", "250ms", "500ms"]
 
 class BinanceWSClient(WSClient):
     def __init__(
@@ -121,12 +123,42 @@ class BinanceWSClient(WSClient):
         params = [f"{symbol.lower()}@miniTicker" for symbol in symbols]
         self._subscribe(params)
 
-    def subscribe_all_ticker(self):
-        params = ["!ticker@arr"]
+    def subscribe_all_mini_ticker(self):
+        params = ["!miniTicker@arr"]
         self._subscribe(params)
 
-    def subscribe_ticker(self, symbols: List[str]):
-        params = [f"{symbol.lower()}@ticker" for symbol in symbols]
+    def subscribe_book_ticker(self, symbols: List[str]):
+        params = [f"{symbol.lower()}@bookTicker" for symbol in symbols]
+        self._subscribe(params)
+    
+    def subscribe_all_book_ticker(self):
+        params = ["!bookTicker"]
+        self._subscribe(params)
+    
+    def subscribe_force_order(self, symbols: List[str]):
+        params = [f"{symbol.lower()}@forceOrder" for symbol in symbols]
+        self._subscribe(params)
+    
+    def subscribe_all_force_order(self):
+        params = ["!forceOrder@arr"]
+        self._subscribe(params)
+    
+    def subscribe_partial_book_depth(
+        self, symbols: List[str], levels: PARTIAL_BOOK_DEPTH_LEVELS, update_speed: BOOK_DEPTH_UPDATE_SPEED
+    ):
+        if update_speed == "250ms":
+            params = [f"{symbol.lower()}@depth{levels}" for symbol in symbols]
+        else:
+            params = [
+                f"{symbol.lower()}@depth{levels}@{update_speed}" for symbol in symbols
+            ]
+        self._subscribe(params)
+    
+    def subscribe_diff_book_depth(self, symbols: List[str], update_speed: BOOK_DEPTH_UPDATE_SPEED):
+        if update_speed == "250ms":
+            params = [f"{symbol.lower()}@depth" for symbol in symbols]
+        else:
+            params = [f"{symbol.lower()}@depth@{update_speed}" for symbol in symbols]
         self._subscribe(params)
 
     def resubscribe(self):

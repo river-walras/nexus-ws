@@ -7,11 +7,11 @@ def handler(raw: bytes):
     print("Received message:", message)
 
 async def main():
-    url = BinanceStreamUrl.SPOT
+    url = BinanceStreamUrl.USDM_FUTURES
     client = BinanceWSClient(handler, url)
 
     await client.connect()
-    client.subscribe_trade(["ethusdt"])
+    client.subscribe_partial_book_depth(["ethusdt"], levels=20, update_speed="100ms")
     await client.wait(timeout=10)
 
 if __name__ == "__main__":
