@@ -19,7 +19,7 @@ KLINE_INTERVAL = Literal[
 ]
 
 ORDER_BOOK_DEPTH = Literal[1, 25, 50, 100, 200, 1000]
-
+CONTRACT_TYPE = Literal["USDT", "USDC", "inverse"]
 
 class BybitPingMsg(msgspec.Struct):
     op: str = ""
@@ -122,6 +122,21 @@ class BybitWSClient(WSClient):
     def subscribe_kline(self, symbols: List[str], interval: KLINE_INTERVAL):
         """subscribe to kline"""
         topics = [f"kline.{interval}.{symbol}" for symbol in symbols]
+        self._subscribe(topics)
+    
+    def subscribe_all_liquidation(self, symbols: List[str]):
+        """subscribe to all liquidation"""
+        topics = [f"allLiquidation.{symbol}" for symbol in symbols]
+        self._subscribe(topics)
+    
+    def subscribe_insurance_pool(self, contract_types: List[CONTRACT_TYPE]):
+        """subscribe to insurance pool"""
+        topics = [f"insurancePool.{contract_type}" for contract_type in contract_types]
+        self._subscribe(topics)
+    
+    def subscribe_adl_alert(self, coins: List[CONTRACT_TYPE]):
+        """subscribe to adl alert"""
+        topics = [f"adlAlert.{coin}" for coin in coins]
         self._subscribe(topics)
 
     def resubscribe(self):
