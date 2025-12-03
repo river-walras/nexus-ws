@@ -12,8 +12,8 @@ async def main():
     url = BinanceStreamUrl.USD_M_FUTURES
     client = BinanceWSClient(handler, url)
 
-    await client.subscribe_partial_book_depth(["ethusdt"], levels=20, update_speed="100ms")
-    await client.wait(timeout=10)
+    await client.subscribe_markprice(["AIAUSDT"])
+    await client.wait()
 
 
 if __name__ == "__main__":
