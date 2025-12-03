@@ -38,7 +38,7 @@ def user_pong_callback(self: Listener, frame: picows.WSFrame) -> bool:
         return False
     try:
         message = msgspec.json.decode(frame.get_payload_as_bytes(), type=BybitPingMsg)
-        self._log.debug(f"Received pong message: {message}")
+        self._log.debug(f"Received pong message: {self._decode_frame(frame)}")
         return message.is_pong
     except msgspec.DecodeError:
         self._log.error(
@@ -59,7 +59,7 @@ class BybitWSClient(WSClient):
             ping_idle_timeout=20,
             ping_reply_timeout=2,
             specific_ping_msg=msgspec.json.encode({"op": "ping"}),
-            auto_ping_strategy="ping_when_idle",
+            auto_ping_strategy="ping_periodically",
             user_pong_callback=user_pong_callback,
         )
 

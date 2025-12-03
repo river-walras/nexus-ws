@@ -13,8 +13,8 @@ async def main():
     client = BybitWSClient(handler, url)
 
     await client.connect()
-    client.subscribe_trade(["BTCUSDT", "ETHUSDT"])
-    await client.wait(timeout=10)
+    client.subscribe_trade(["BTCUSDT"])
+    await client.wait()
 
 
 if __name__ == "__main__":
