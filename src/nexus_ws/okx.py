@@ -1,5 +1,4 @@
 import picows
-import msgspec
 from enum import Enum
 from typing import Any, Callable, List, Literal, Dict
 

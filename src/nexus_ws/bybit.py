@@ -125,8 +125,10 @@ class BybitWSClient(WSClient):
             )
 
     def auth(self):
+        self._log.debug("Authenticating...")
         self.send(self._get_auth_payload())
         time.sleep(5)  # wait for auth response
+        self._log.debug("Authentication payload sent.")
 
     def _generate_signature(self):
         if self._secret is None:

@@ -2,10 +2,12 @@ import asyncio
 import os
 import msgspec
 from nexus_ws import BybitWSClient, BybitTestnetStreamUrl
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_KEY = os.getenv("BYBIT_API")
 SECRET = os.getenv("BYBIT_SECRET")
-
 
 def handler(raw: bytes):
     message = msgspec.json.decode(raw)
