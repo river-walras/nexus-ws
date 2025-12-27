@@ -1,4 +1,7 @@
 import picows
+import hmac
+import base64
+import time
 from enum import Enum
 from typing import Any, Callable, List, Literal, Dict
 
@@ -9,10 +12,24 @@ from .ws import WSClient, Listener
 class OkxStreamUrl(Enum):
     PUBLIC = "wss://ws.okx.com:8443/ws/v5/public"
     BUSINESS = "wss://ws.okx.com:8443/ws/v5/business"
+    PRIVATE = "wss://ws.okx.com:8443/ws/v5/private"
 
+class OkxDemoStreamUrl(Enum):
+    PUBLIC = "wss://wspap.okx.com:8443/ws/v5/public"
+    BUSINESS = "wss://wspap.okx.com:8443/ws/v5/business"
+    PRIVATE = "wss://wspap.okx.com:8443/ws/v5/private"
 
 ORDER_BOOK_CHANNELS = Literal[
     "books", "books5", "bbo-tbt", "books-l2-tbt", "books50-l2-tbt"
+]
+
+INST_TYPE = Literal[
+    "SPOT",
+    "MARGIN",
+    "SWAP",
+    "FUTURES",
+    "OPTION",
+    "ANY",
 ]
 
 CANDLESTICK_CHANNELS = Literal[
@@ -59,6 +76,9 @@ class OkxWSClient(WSClient):
         self,
         handler: Callable[..., Any],
         url: OkxStreamUrl,
+        api_key: str | None = None,
+        secret: str | None = None,
+        passphrase: str | None = None,
     ):
         self._business = url == OkxStreamUrl.BUSINESS
         super().__init__(
@@ -69,6 +89,48 @@ class OkxWSClient(WSClient):
             ping_reply_timeout=2,
             user_pong_callback=user_pong_callback,
         )
+
+        self._api_key = api_key
+        self._secret = secret
+        self._passphrase = passphrase
+
+        if (self._api_key is None) != (self._secret is None) or (
+            self._api_key is None) != (self._passphrase is None):
+            raise ValueError("api_key, secret, and passphrase must be provided together")
+
+        if self._api_key and url != OkxStreamUrl.PRIVATE:
+            raise ValueError(
+                "api_key, secret, and passphrase can only be used with private stream url"
+            )
+    
+    def _get_auth_payload(self):
+        if self._secret is None:
+            raise ValueError("Secret is missing.")
+
+        timestamp = int(time.time())
+        message = str(timestamp) + "GET" + "/users/self/verify"
+        mac = hmac.new(
+            bytes(self._secret, encoding="utf8"),
+            bytes(message, encoding="utf-8"),
+            digestmod="sha256",
+        )
+        d = mac.digest()
+        sign = base64.b64encode(d)
+        if self._api_key is None or self._passphrase is None or self._secret is None:
+            raise ValueError("API Key, Passphrase, or Secret is missing.")
+        arg = {
+            "apiKey": self._api_key,
+            "passphrase": self._passphrase,
+            "timestamp": timestamp,
+            "sign": sign.decode("utf-8"),
+        }
+        payload = {"op": "login", "args": [arg]}
+        return payload
+
+    def auth(self):
+        payload = self._get_auth_payload()
+        self.send(payload)
+        time.sleep(5)  # wait for auth to complete
 
     def _send_payload(
         self,
@@ -88,7 +150,7 @@ class OkxWSClient(WSClient):
             }
             self.send(payload)
 
-    def _subscribe(self, params: List[Dict[str, Any]], auth: bool = False):
+    def _subscribe(self, params: List[Dict[str, Any]]):
         params = [param for param in params if param not in self._subscriptions]
 
         for param in params:
@@ -201,4 +263,75 @@ class OkxWSClient(WSClient):
         self._unsubscribe(params)
 
     def resubscribe(self):
+        if self._api_key is not None:
+            self.auth()
         self._send_payload(self._subscriptions)
+    
+    def subscribe_orders(self, inst_types: INST_TYPE, inst_family: str | None = None, instId: str | None = None):
+        """
+        subscribe to orders
+
+        Args:
+            inst_types: instrument type
+            inst_family: instrument family
+            instId: instrument id
+        """
+        if self._api_key is None:
+            raise ValueError("API key is required for subscribing to orders")
+
+        param: Dict[str, Any] = {"channel": "orders", "instType": inst_types}
+        if inst_family is not None:
+            param["instFamily"] = inst_family
+        if instId is not None:
+            param["instId"] = instId
+
+        self._subscribe([param])
+
+    def subscribe_account(self, ccy: str | None = None):
+        """
+        subscribe to account
+
+        Args:
+            ccy: currency
+        """
+        if self._api_key is None:
+            raise ValueError("API key is required for subscribing to account")
+
+        param: Dict[str, Any] = {"channel": "account"}
+        if ccy is not None:
+            param["ccy"] = ccy
+
+        self._subscribe([param])
+    
+    def subscribe_positions(self, inst_types: INST_TYPE, inst_family: str | None = None, instId: str | None = None):
+        """
+        subscribe to positions
+
+        Args:
+            inst_types: instrument type
+            inst_family: instrument family
+            instId: instrument id
+        """
+        if self._api_key is None:
+            raise ValueError("API key is required for subscribing to positions")
+
+        param: Dict[str, Any] = {"channel": "positions", "instType": inst_types}
+        if inst_family is not None:
+            param["instFamily"] = inst_family
+        if instId is not None:
+            param["instId"] = instId
+
+        self._subscribe([param])
+    
+    def subscribe_balance_and_position(self):
+        """
+        subscribe to balance_and_position
+        """
+        if self._api_key is None:
+            raise ValueError("API key is required for subscribing to balance_and_position")
+
+        param: Dict[str, Any] = {"channel": "balance_and_position"}
+
+        self._subscribe([param])    
+
+
