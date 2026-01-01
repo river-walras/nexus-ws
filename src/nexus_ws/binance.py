@@ -7,7 +7,7 @@ class BinanceStreamUrl(Enum):
     USD_M_FUTURES = "wss://fstream.binance.com/ws"
     COIN_M_FUTURES = "wss://dstream.binance.com/ws"
     SPOT = "wss://stream.binance.com:9443/ws"
-
+    PORTFOLIO_MARGIN = "wss://fstream.binance.com/pm/ws"
 
 KLINE_INTERVAL = Literal[
     "1m",
