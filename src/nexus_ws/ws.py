@@ -27,7 +27,7 @@ class Listener(WSListener):
         self,
         callback,
         logger: logging.Logger,
-        specific_ping_msg=None,
+        specific_ping_msg: bytes | None = None,
         user_pong_callback: Callable[["Listener", WSFrame], bool] | None = None,
         *args,
         **kwargs,
@@ -40,7 +40,7 @@ class Listener(WSListener):
         """
         super().__init__(*args, **kwargs)
         self._log = logger
-        self._specific_ping_msg: bytes = specific_ping_msg
+        self._specific_ping_msg: bytes | None = specific_ping_msg
         self._callback = callback
 
         if user_pong_callback:
@@ -231,7 +231,7 @@ class WSClient(ABC):
         """Periodically disconnect to trigger reconnection (e.g., every 24 hours)."""
         while True:
             try:
-                await asyncio.sleep(self._auto_reconnect_interval)
+                await asyncio.sleep(self._auto_reconnect_interval) # type: ignore
                 self._log.info("Auto-reconnect triggered, disconnecting...")
                 self.disconnect()
             except asyncio.CancelledError:

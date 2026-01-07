@@ -252,5 +252,5 @@ class BybitWSClient(WSClient):
 
     async def resubscribe(self):
         if self._api_key is not None:
-            self.auth()
+            await self.auth()
         self._send_payload(self._subscriptions)
