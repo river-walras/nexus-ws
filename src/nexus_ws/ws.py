@@ -230,13 +230,17 @@ class WSClient(ABC):
             try:
                 await asyncio.sleep(self._auto_reconnect_interval)
                 self._log.info("Auto-reconnect triggered, disconnecting...")
-                if self._transport:
-                    self._transport.disconnect()
+                self.disconnect()
             except asyncio.CancelledError:
                 self._log.info("Auto-reconnect loop cancelled.")
                 break
             except Exception as e:
                 self._log.error(f"Error in auto-reconnect loop: {e}")
+    
+    def disconnect(self):
+        """Manually disconnect the websocket."""
+        if self._transport:
+            self._transport.disconnect()
 
     def start(self) -> asyncio.Task:
         """Start the internal wait loop as a background asyncio task."""

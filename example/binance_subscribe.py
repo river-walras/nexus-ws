@@ -2,7 +2,6 @@ import asyncio
 import msgspec
 from nexus_ws import BinanceWSClient, BinanceStreamUrl
 
-
 def handler(raw: bytes):
     message = msgspec.json.decode(raw)
     print("Received message:", message)
@@ -11,8 +10,8 @@ def handler(raw: bytes):
 async def main():
     url = BinanceStreamUrl.USD_M_FUTURES
     async with BinanceWSClient(handler, url) as client:
-        client.subscribe_trade(["BTCUSDT"])
-        await asyncio.sleep(10)
+        client.subscribe_all_force_order()
+        await asyncio.sleep(10000)
 
 
 if __name__ == "__main__":
