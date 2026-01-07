@@ -14,10 +14,12 @@ class OkxStreamUrl(Enum):
     BUSINESS = "wss://ws.okx.com:8443/ws/v5/business"
     PRIVATE = "wss://ws.okx.com:8443/ws/v5/private"
 
+
 class OkxDemoStreamUrl(Enum):
     PUBLIC = "wss://wspap.okx.com:8443/ws/v5/public"
     BUSINESS = "wss://wspap.okx.com:8443/ws/v5/business"
     PRIVATE = "wss://wspap.okx.com:8443/ws/v5/private"
+
 
 ORDER_BOOK_CHANNELS = Literal[
     "books", "books5", "bbo-tbt", "books-l2-tbt", "books50-l2-tbt"
@@ -79,6 +81,7 @@ class OkxWSClient(WSClient):
         api_key: str | None = None,
         secret: str | None = None,
         passphrase: str | None = None,
+        auto_reconnect_interval: int | None = None,
     ):
         self._business = url == OkxStreamUrl.BUSINESS
         super().__init__(
@@ -88,6 +91,7 @@ class OkxWSClient(WSClient):
             ping_idle_timeout=5,
             ping_reply_timeout=2,
             user_pong_callback=user_pong_callback,
+            auto_reconnect_interval=auto_reconnect_interval,
         )
 
         self._api_key = api_key
@@ -95,14 +99,17 @@ class OkxWSClient(WSClient):
         self._passphrase = passphrase
 
         if (self._api_key is None) != (self._secret is None) or (
-            self._api_key is None) != (self._passphrase is None):
-            raise ValueError("api_key, secret, and passphrase must be provided together")
+            self._api_key is None
+        ) != (self._passphrase is None):
+            raise ValueError(
+                "api_key, secret, and passphrase must be provided together"
+            )
 
         if self._api_key and url != OkxStreamUrl.PRIVATE:
             raise ValueError(
                 "api_key, secret, and passphrase can only be used with private stream url"
             )
-    
+
     def _get_auth_payload(self):
         if self._secret is None:
             raise ValueError("Secret is missing.")
@@ -266,8 +273,13 @@ class OkxWSClient(WSClient):
         if self._api_key is not None:
             self.auth()
         self._send_payload(self._subscriptions)
-    
-    def subscribe_orders(self, inst_types: INST_TYPE, inst_family: str | None = None, instId: str | None = None):
+
+    def subscribe_orders(
+        self,
+        inst_types: INST_TYPE,
+        inst_family: str | None = None,
+        instId: str | None = None,
+    ):
         """
         subscribe to orders
 
@@ -302,8 +314,13 @@ class OkxWSClient(WSClient):
             param["ccy"] = ccy
 
         self._subscribe([param])
-    
-    def subscribe_positions(self, inst_types: INST_TYPE, inst_family: str | None = None, instId: str | None = None):
+
+    def subscribe_positions(
+        self,
+        inst_types: INST_TYPE,
+        inst_family: str | None = None,
+        instId: str | None = None,
+    ):
         """
         subscribe to positions
 
@@ -322,16 +339,16 @@ class OkxWSClient(WSClient):
             param["instId"] = instId
 
         self._subscribe([param])
-    
+
     def subscribe_balance_and_position(self):
         """
         subscribe to balance_and_position
         """
         if self._api_key is None:
-            raise ValueError("API key is required for subscribing to balance_and_position")
+            raise ValueError(
+                "API key is required for subscribing to balance_and_position"
+            )
 
         param: Dict[str, Any] = {"channel": "balance_and_position"}
 
-        self._subscribe([param])    
-
-
+        self._subscribe([param])

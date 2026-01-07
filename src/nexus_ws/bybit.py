@@ -41,7 +41,6 @@ class BybitTestnetStreamUrl(Enum):
         return not self.is_private
 
 
-
 KLINE_INTERVAL = Literal[
     "1", "3", "5", "15", "30", "60", "120", "240", "360", "720", "D", "W", "M"
 ]
@@ -100,6 +99,7 @@ class BybitWSClient(WSClient):
         url: BybitStreamUrl | BybitTestnetStreamUrl,
         api_key: str | None = None,
         secret: str | None = None,
+        auto_reconnect_interval: int | None = None,
     ):
         super().__init__(
             url.value,
@@ -109,6 +109,7 @@ class BybitWSClient(WSClient):
             specific_ping_msg=msgspec.json.encode({"op": "ping"}),
             auto_ping_strategy="ping_when_idle",
             user_pong_callback=user_pong_callback,
+            auto_reconnect_interval=auto_reconnect_interval,
         )
 
         self._api_key = api_key

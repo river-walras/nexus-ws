@@ -44,7 +44,7 @@ class Listener(WSListener):
         self._callback = callback
 
         if user_pong_callback:
-            self.is_user_specific_pong = MethodType(user_pong_callback, self) # type: ignore
+            self.is_user_specific_pong = MethodType(user_pong_callback, self)  # type: ignore
 
     def send_user_specific_ping(self, transport: WSTransport) -> None:
         """Send a custom ping message or default ping frame.
@@ -130,6 +130,7 @@ class WSClient(ABC):
         enable_auto_ping: bool = True,
         enable_auto_pong: bool = True,
         user_pong_callback: Callable[["Listener", WSFrame], bool] | None = None,
+        auto_reconnect_interval: int | None = None,
     ):
         self._url = url
         self._specific_ping_msg = specific_ping_msg
@@ -143,6 +144,8 @@ class WSClient(ABC):
         self._transport = None
         self._subscriptions = []
         self._wait_task: asyncio.Task | None = None
+        self._auto_reconnect_interval = auto_reconnect_interval
+        self._auto_reconnect_task: asyncio.Task | None = None
         self._callback = handler
         if auto_ping_strategy == "ping_when_idle":
             self._auto_ping_strategy = WSAutoPingStrategy.PING_WHEN_IDLE
@@ -158,7 +161,13 @@ class WSClient(ABC):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Exit async context manager."""
         await self.stop()
-        return False  # Don't suppress exceptions
+
+        # Suppress KeyboardInterrupt and CancelledError for graceful shutdown
+        if exc_type in (KeyboardInterrupt, asyncio.CancelledError):
+            self._log.debug("Shutting down gracefully...")
+            return True  # Suppress these exceptions
+
+        return False  # Don't suppress other exceptions
 
     def timestamp_ms(self) -> int:
         return int(time.time() * 1000)
@@ -191,7 +200,7 @@ class WSClient(ABC):
             try:
                 await self._connect()
                 self.resubscribe()
-                await self._transport.wait_disconnected() # type: ignore
+                await self._transport.wait_disconnected()  # type: ignore
                 self._log.debug("Websocket disconnected.")
             except asyncio.CancelledError:
                 self._log.info("Websocket connection loop cancelled.")
@@ -215,16 +224,50 @@ class WSClient(ABC):
             except asyncio.TimeoutError:
                 pass
 
+    async def _auto_reconnect_loop(self):
+        """Periodically disconnect to trigger reconnection (e.g., every 24 hours)."""
+        while True:
+            try:
+                await asyncio.sleep(self._auto_reconnect_interval)
+                self._log.info("Auto-reconnect triggered, disconnecting...")
+                if self._transport:
+                    self._transport.disconnect()
+            except asyncio.CancelledError:
+                self._log.info("Auto-reconnect loop cancelled.")
+                break
+            except Exception as e:
+                self._log.error(f"Error in auto-reconnect loop: {e}")
+
     def start(self) -> asyncio.Task:
         """Start the internal wait loop as a background asyncio task."""
         if self._wait_task and not self._wait_task.done():
             self._log.debug("Websocket wait loop already running.")
             return self._wait_task
         self._wait_task = asyncio.create_task(self._wait())
+
+        # Start auto-reconnect task if configured
+        if self._auto_reconnect_interval and not (
+            self._auto_reconnect_task and not self._auto_reconnect_task.done()
+        ):
+            self._auto_reconnect_task = asyncio.create_task(self._auto_reconnect_loop())
+            self._log.info(
+                f"Auto-reconnect enabled: will reconnect every {self._auto_reconnect_interval} seconds."
+            )
+
         return self._wait_task
 
     async def stop(self) -> None:
         """Cancel the background wait loop if it is running."""
+        # Cancel auto-reconnect task first
+        if self._auto_reconnect_task:
+            self._auto_reconnect_task.cancel()
+            try:
+                await self._auto_reconnect_task
+            except asyncio.CancelledError:
+                pass
+            self._auto_reconnect_task = None
+
+        # Cancel main wait loop
         if not self._wait_task:
             return
         task, self._wait_task = self._wait_task, None
@@ -238,7 +281,7 @@ class WSClient(ABC):
         if not self.connected:
             self._log.warning(f"Websocket not connected. drop msg: {str(payload)}")
             return
-        self._transport.send(WSMsgType.TEXT, msgspec.json.encode(payload)) # type: ignore
+        self._transport.send(WSMsgType.TEXT, msgspec.json.encode(payload))  # type: ignore
 
     def _clean_up(self):
         self._transport, self._listener = None, None

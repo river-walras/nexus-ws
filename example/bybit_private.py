@@ -9,6 +9,7 @@ load_dotenv()
 API_KEY = os.getenv("BYBIT_API")
 SECRET = os.getenv("BYBIT_SECRET")
 
+
 def handler(raw: bytes):
     message = msgspec.json.decode(raw)
     print("Received message:", message)
@@ -25,6 +26,7 @@ async def main():
     client.subscribe_fast_execution()
 
     await client.wait()
-    
+
+
 if __name__ == "__main__":
     asyncio.run(main())

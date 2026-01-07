@@ -11,7 +11,7 @@ def handler(raw: bytes):
 async def main():
     url = BinanceStreamUrl.USD_M_FUTURES
     async with BinanceWSClient(handler, url) as client:
-        client.subscribe_trade(["AIAUSDT"])
+        client.subscribe_trade(["BTCUSDT"])
         await asyncio.sleep(10)
 
 

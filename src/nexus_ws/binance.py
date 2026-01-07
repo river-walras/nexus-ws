@@ -9,6 +9,7 @@ class BinanceStreamUrl(Enum):
     SPOT = "wss://stream.binance.com:9443/ws"
     PORTFOLIO_MARGIN = "wss://fstream.binance.com/pm/ws"
 
+
 KLINE_INTERVAL = Literal[
     "1m",
     "3m",
@@ -40,11 +41,13 @@ class BinanceWSClient(WSClient):
         self,
         handler: Callable[..., Any],
         url: BinanceStreamUrl,
+        auto_reconnect_interval: int | None = None,
     ):
         super().__init__(
             url.value,
             handler=handler,
             enable_auto_ping=False,
+            auto_reconnect_interval=auto_reconnect_interval,
         )
 
     def _send_payload(
@@ -166,10 +169,9 @@ class BinanceWSClient(WSClient):
         else:
             params = [f"{symbol.lower()}@depth@{update_speed}" for symbol in symbols]
         self._subscribe(params)
-    
+
     def subscribe_user_data_stream(self, listen_key: str):
         self._subscribe([listen_key])
-
 
     def resubscribe(self):
         self._send_payload(self._subscriptions)

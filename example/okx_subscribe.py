@@ -2,6 +2,7 @@ import asyncio
 import msgspec
 from nexus_ws import OkxStreamUrl, OkxWSClient
 
+
 def handler(raw: bytes):
     message = msgspec.json.decode(raw)
     print("Received message:", message)
