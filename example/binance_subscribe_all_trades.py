@@ -3,7 +3,6 @@ import msgspec
 import asyncio
 from nexus_ws import BinanceWSClient, BinanceStreamUrl
 
-
 def get_all_symbols():
     url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
     response = requests.get(url)
@@ -23,9 +22,13 @@ async def main():
     symbols = get_all_symbols()
     url = BinanceStreamUrl.USD_M_FUTURES
     async with BinanceWSClient(
-        handler, url, max_clients=30, max_subscriptions_per_client=50
+        handler, url, max_clients=30, max_subscriptions_per_client=100
     ) as client:
-        client.subscribe_trade(symbols)
+        client.subscribe_kline(symbols, interval="1m")
+        client.subscribe_kline(symbols, interval="3m")
+        client.subscribe_kline(symbols, interval="5m")
+        client.subscribe_kline(symbols, interval="15m")
+        client.subscribe_kline(symbols, interval="30m")
         await asyncio.sleep(200)
 
 
