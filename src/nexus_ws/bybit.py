@@ -208,7 +208,15 @@ class BybitWSClient(WSClient):
 
     def subscribe_trade(self, symbols: List[str]):
         """subscribe to trade"""
-        topics = [f"publicTrade.{symbol}" for symbol in symbols]
+        if self._url in {
+            BybitStreamUrl.OPTION.value,
+            BybitTestnetStreamUrl.OPTION.value,
+        }:
+            #NOTE option uses baseCoin, e.g., publicTrade.BTC
+            base = set([s.split("-")[0] for s in symbols])
+            topics = [f"publicTrade.{b}" for b in base]
+        else:
+            topics = [f"publicTrade.{symbol}" for symbol in symbols]
         self._subscribe(topics)
 
     def subscribe_ticker(self, symbols: List[str]):
