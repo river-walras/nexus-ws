@@ -109,7 +109,7 @@ class BybitWSClient(WSClient):
             ping_idle_timeout=20,
             ping_reply_timeout=2,
             specific_ping_msg=msgspec.json.encode({"op": "ping"}),
-            auto_ping_strategy="ping_when_idle",
+            auto_ping_strategy="ping_periodically",
             user_pong_callback=user_pong_callback,
             auto_reconnect_interval=auto_reconnect_interval,
             max_subscriptions_per_client=max_subscriptions_per_client,

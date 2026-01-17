@@ -1,6 +1,7 @@
 import requests
 import msgspec
 import asyncio
+import logging
 from nexus_ws import BinanceWSClient, BinanceStreamUrl
 
 def get_all_symbols():
