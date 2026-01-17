@@ -25,11 +25,7 @@ def get_instrument_info(
             params.pop("cursor", None)
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
-        try:
-            data = resp.json()
-        except requests.exceptions.JSONDecodeError as exc:
-            preview = resp.text[:500].strip()
-            raise RuntimeError(f"Bybit response was not JSON: {preview}") from exc
+        data = resp.json()
         if data.get("retCode") != 0:
             raise RuntimeError(f"Bybit API error: {data}")
         result = data.get("result", {})
@@ -47,13 +43,13 @@ def handler(raw: bytes):
 
 async def main():
     url = BybitStreamUrl.OPTION
-    client = BybitWSClient(handler, url, max_subscriptions_per_client=100, max_clients=20)
+    client = BybitWSClient(handler, url, max_subscriptions_per_client=50, max_clients=20)
 
     symbols = get_instrument_info("option", "Trading")
 
     client.subscribe_trade(symbols)
-    # client.subscribe_order_book(symbols, "25")
-    await client.wait(timeout=100)
+    client.subscribe_order_book(symbols, "25")
+    await client.wait(timeout=1000)
 
 
 if __name__ == "__main__":
