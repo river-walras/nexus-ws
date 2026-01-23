@@ -10,4 +10,5 @@ wheels/
 .venv
 .ruff_cache/
 .env
-.env.*
+.env.
+.secrets.toml
