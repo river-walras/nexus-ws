@@ -1,13 +1,28 @@
-from typing import List, Callable, Any, Literal
+import hmac
+import hashlib
+from typing import List, Callable, Any, Literal, Dict
 from enum import Enum
+from urllib.parse import urlencode
 from .ws import WSClient
 
 
 class BinanceStreamUrl(Enum):
     USD_M_FUTURES = "wss://fstream.binance.com/ws"
+    USD_M_FUTURES_TESTNET = "wss://fstream.binancefuture.com/ws"
     COIN_M_FUTURES = "wss://dstream.binance.com/ws"
+    COIN_M_FUTURES_TESTNET = "wss://dstream.binancefuture.com/ws"
     SPOT = "wss://stream.binance.com:9443/ws"
+    SPOT_TESTNET = "wss://demo-stream.binance.com/ws"
     PORTFOLIO_MARGIN = "wss://fstream.binance.com/pm/ws"
+
+
+class BinanceWsApiUrl(Enum):
+    SPOT = "wss://ws-api.binance.com:443/ws-api/v3"
+    SPOT_TESTNET = "wss://demo-ws-api.binance.com/ws-api/v3"
+    USD_M_FUTURE = "wss://ws-fapi.binance.com/ws-fapi/v1"
+    USD_M_FUTURE_TESTNET = "wss://testnet.binancefuture.com/ws-fapi/v1"
+    COIN_M_FUTURE = "wss://ws-dapi.binance.com/ws-dapi/v1"
+    COIN_M_FUTURE_TESTNET = "wss://testnet.binancefuture.com/ws-dapi/v1"
 
 
 KLINE_INTERVAL = Literal[
@@ -185,3 +200,86 @@ class BinanceWSClient(WSClient):
         if not subscriptions:
             return
         self._send_payload(subscriptions, client_id=client_id)
+
+
+class BinanceWSApiClient(WSClient):
+    def __init__(
+        self,
+        handler: Callable[..., Any],
+        url: BinanceStreamUrl,
+        api_key: str | None = None,
+        secret: str | None = None,
+        auto_reconnect_interval: int | None = None,
+        max_subscriptions_per_client: int | None = None,
+        max_clients: int | None = None,
+    ):
+        super().__init__(
+            url.value,
+            handler=handler,
+            enable_auto_ping=False,
+            auto_reconnect_interval=auto_reconnect_interval,
+            max_subscriptions_per_client=max_subscriptions_per_client,
+            max_clients=max_clients,
+        )
+        self._api_key = api_key
+        self._secret = secret
+
+        if (self._api_key is None) != (self._secret is None):
+            raise ValueError(
+                "Both api_key and secret must be provided for authenticated endpoints."
+            )
+
+    def _generate_signature(self, query: str) -> str:
+        signature = hmac.new(
+            self._secret.encode("utf-8"), query.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        return signature
+
+    def _send_payload(
+        self,
+        params: Dict[str, Any],
+        method: str,
+        client_id: int | None = None,
+    ):
+        query = urlencode(sorted(params.items()))
+        signature = self._generate_signature(query)
+        params["signature"] = signature
+
+        payload = {
+            "method": method,
+            "params": params,
+            "id": self.timestamp_ms(),
+        }
+        self.send(payload, client_id=client_id)
+
+    def _subscribe(self, params: List[Any]):
+        params = [param for param in params if param not in self._subscriptions]
+
+        if not params:
+            return
+
+        for param in params:
+            self._log.debug(f"Subscribing to {param}...")
+
+        self._register_subscriptions(params)
+
+    def subscribe_spot_user_data_stream(self):
+        if self._url not in {
+            BinanceWsApiUrl.SPOT.value,
+            BinanceWsApiUrl.SPOT_TESTNET.value,
+        }:
+            raise ValueError(
+                "Spot user data stream subscription is only supported on SPOT_WS_API and SPOT_WS_API_TESTNET endpoints."
+            )
+        param = {
+            "apiKey": self._api_key,
+            "timestamp": self.timestamp_ms(),
+        }
+
+        self._subscribe([(param, "userDataStream.subscribe.signature")])
+
+    async def _resubscribe_for_client(self, client_id: int, subscriptions: List[str]):
+        if not subscriptions:
+            return
+        for sub, method in subscriptions:
+            self._send_payload(sub, method=method, client_id=client_id)
